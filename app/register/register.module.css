@@ -1,0 +1,98 @@
+.wrapper {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #ffffff;
+}
+
+.card {
+  width: 380px;
+  padding: 32px;
+  border: 1px solid #e6e6e6;
+  border-radius: 16px;
+}
+
+.logoSection {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.logoSection h2 {
+  margin-top: 16px;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+}
+
+.field label {
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: #555;
+}
+
+.field input {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #cfcfcf;
+  font-size: 15px;
+}
+
+.field input:focus {
+  outline: none;
+  border-color: #1da1f2;
+}
+
+.errorBox {
+  background: #ffe3e3;
+  color: #b60000;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  border: 1px solid #ffb8b8;
+}
+
+.registerButton {
+  background: #1da1f2;
+  border: none;
+  color: white;
+  font-size: 16px;
+  padding: 12px;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.registerButton:hover {
+  background: #1584c8;
+}
+
+.registerButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loginText {
+  text-align: center;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.loginLink {
+  color: #1da1f2;
+  text-decoration: none;
+}
+
+.loginLink:hover {
+  text-decoration: underline;
+}

@@ -1,0 +1,59 @@
+/* app/globals.css */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: white;
+  color: #000;
+  line-height: 1.4;
+}
+
+/* Twitter-like utility classes */
+.hover-bg-gray-200:hover {
+  background-color: rgba(15, 20, 25, 0.1);
+}
+
+.hover-bg-blue-50:hover {
+  background-color: rgba(29, 155, 240, 0.1);
+}
+
+.hover-bg-green-50:hover {
+  background-color: rgba(0, 186, 124, 0.1);
+}
+
+.hover-bg-red-50:hover {
+  background-color: rgba(249, 24, 128, 0.1);
+}
+
+/* Animation for loading */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
