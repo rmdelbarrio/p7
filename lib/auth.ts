@@ -1,11 +1,17 @@
 // lib/auth.ts
 export const TOKEN_KEY = "accessToken";
+export const REFRESH_TOKEN_KEY = "refreshToken"; // New constant
 
-export function saveToken(token: string) {
+export function saveToken(accessToken: string, refreshToken?: string) {
   if (typeof window !== 'undefined') {
-    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(TOKEN_KEY, accessToken);
     // Also set a cookie for middleware access
-    document.cookie = `accessToken=${token}; path=/; max-age=86400; SameSite=Lax`;
+    document.cookie = `accessToken=${accessToken}; path=/; max-age=86400; SameSite=Lax`;
+    
+    if (refreshToken) {
+      // Store refresh token for later use
+      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken); 
+    }
   }
 }
 
@@ -19,6 +25,7 @@ export function getToken(): string | null {
 export function logoutUser() {
   if (typeof window !== 'undefined') {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY); // Remove refresh token
     // Also remove the cookie
     document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;';
   }
@@ -31,11 +38,7 @@ export function isAuthenticated(): boolean {
   return false;
 }
 
-// Mock user data - replace with actual API calls
-export const mockUsers = [
-  { id: 1, email: 'user@example.com', password: 'password', username: 'demo_user' },
-  { id: 2, email: 'test@example.com', password: 'test123', username: 'test_user' },
-];
+// Removed mockUsers array
 
 export interface User {
   id: number;
