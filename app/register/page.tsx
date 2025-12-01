@@ -1,14 +1,16 @@
+// app/register/page.tsx
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Bird } from "lucide-react";
+import { API_BASE } from "../../lib/config"; // Import API_BASE
 import styles from "./register.module.css";
 
 export default function RegisterPage() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState(""); // State changed from name to username
+  const [email, setEmail] = useState(""); // Kept for the form, but not used by the backend API
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
@@ -28,12 +30,14 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/register", {
+      // Direct call to NestJS API
+      const response = await fetch(`${API_BASE}/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name, email, password }),
+        // NestJS Register endpoint only needs username and password
+        body: JSON.stringify({ username, password }), 
       });
 
       const data = await response.json();
@@ -41,9 +45,10 @@ export default function RegisterPage() {
       if (response.ok) {
         router.push("/login");
       } else {
-        setError(data.error || "Registration failed");
+        setError(data.message || "Registration failed"); 
       }
-    } catch {
+    } catch(error) {
+      console.error("Registration error:", error);
       setError("An error occurred during registration.");
     } finally {
       setLoading(false);
@@ -62,22 +67,21 @@ export default function RegisterPage() {
           {error && <div className={styles.errorBox}>{error}</div>}
 
           <div className={styles.field}>
-            <label>Name</label>
+            <label>Username</label> // Updated label from Name to Username
             <input
               type="text"
-              placeholder="Your full name"
+              placeholder="Your unique username" // Updated placeholder
               required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)} // Updated setter
             />
           </div>
 
           <div className={styles.field}>
-            <label>Email</label>
+            <label>Email (Optional)</label>
             <input
               type="email"
               placeholder="you@example.com"
-              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -105,7 +109,7 @@ export default function RegisterPage() {
             />
           </div>
 
-          <button className={styles.registerButton} disabled={loading}>
+          <button className={styles.registerButton} disabled={loading || !username || !password || password !== confirm}>
             {loading ? "Creating account..." : "Sign Up"}
           </button>
 
