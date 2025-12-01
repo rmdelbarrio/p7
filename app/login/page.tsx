@@ -1,14 +1,16 @@
+// app/login/page.tsx
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { saveToken } from "../../lib/auth";
+import { API_BASE } from "../../lib/config"; // Import API_BASE
 import { Bird } from "lucide-react";
 import styles from "./login.module.css";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState(""); // State changed from email to username
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,23 +22,27 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const response = await fetch("/api/auth/login", {
+      // Direct call to NestJS API
+      const response = await fetch(`${API_BASE}/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }), 
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        saveToken(data.token);
+        // NestJS returns { accessToken, refreshToken }
+        saveToken(data.accessToken, data.refreshToken); 
         router.push("/");
       } else {
-        setError(data.error || "Login failed");
+        // Use message/error from NestJS response
+        setError(data.error || data.message || "Login failed");
       }
     } catch (error) {
+      console.error("Login error:", error);
       setError("An error occurred during login");
     } finally {
       setLoading(false);
@@ -55,13 +61,13 @@ export default function LoginPage() {
           {error && <div className={styles.errorBox}>{error}</div>}
 
           <div className={styles.field}>
-            <label>Email</label>
+            <label>Username</label> 
             <input
-              type="email"
+              type="text" // Updated type to text for username
               required
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Your unique username" 
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
             />
           </div>
 
@@ -76,7 +82,7 @@ export default function LoginPage() {
             />
           </div>
 
-          <button className={styles.loginButton} disabled={loading}>
+          <button className={styles.loginButton} disabled={loading || !username || !password}>
             {loading ? "Signing in..." : "Sign In"}
           </button>
 
