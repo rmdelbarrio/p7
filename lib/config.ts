@@ -1,5 +1,6 @@
 // lib/config.ts
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+// export const API_BASE = 'https://adet-aiah.onrender.com/auth';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://adet-aiah.onrender.com/auth';
 
 export const APP_CONFIG = {
   name: 'mBoard',
