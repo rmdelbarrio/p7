@@ -1,55 +1,46 @@
+// app/api/auth/route.ts
 import { NextResponse } from 'next/server';
-import { API_BASE } from '../../../lib/config'; 
+import { API_BASE } from '../../../lib/config'; // Import API_BASE
+// import { mockUsers } from '../../../lib/auth'; // Removed mock data import
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json();
+    const { username, email, password } = await request.json();
 
     // Validate input
-    if (!email || !password) {
+    if (!username || !email || !password) {
       return NextResponse.json(
-        { error: 'Email and password are required' },
+        { error: 'Missing required fields' },
         { status: 400 }
       );
     }
     
-    // NOTE: NestJS backend uses 'username' for login, so we pass 'email' as 'username'
-    const backendResponse = await fetch(`${API_BASE}/login`, {
+    // Call the external NestJS API registration endpoint
+    const backendResponse = await fetch(`${API_BASE}/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ username: email, password }),
+      // NestJS registration endpoint expects username and password
+      body: JSON.stringify({ username, password }),
     });
 
     const data = await backendResponse.json();
     
     if (backendResponse.ok) {
-      const token = data.accessToken;
-      
-      const response = NextResponse.json({
-        token,
-        user: { id: 1, username: email, email: email } 
-      });
-
-      response.cookies.set('accessToken', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 86400, 
-      });
-
-      return response;
+        // Successful registration, pass through the NestJS response (e.g., { id, username, role })
+        return NextResponse.json(data);
     } else {
+      // Pass backend error details to the frontend
       return NextResponse.json(
-        { error: data.message || data.error || 'Login failed from backend' },
+        { error: data.message || data.error || 'Registration failed from backend' },
         { status: backendResponse.status }
       );
     }
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Registration error:', error);
     return NextResponse.json(
-      { error: 'An internal error occurred during login.' },
+      { error: 'An internal error occurred during registration.' },
       { status: 500 }
     );
   }
