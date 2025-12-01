@@ -1,70 +1,55 @@
-// app/api/auth/route.ts
 import { NextResponse } from 'next/server';
-import { mockUsers } from '../../../lib/auth';
+import { API_BASE } from '../../../lib/config'; 
 
 export async function POST(request: Request) {
   try {
-    const { username, email, password } = await request.json();
+    const { email, password } = await request.json();
 
     // Validate input
-    if (!username || !email || !password) {
+    if (!email || !password) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Email and password are required' },
         { status: 400 }
       );
     }
-
-    // Check if user already exists
-    const existingUser = mockUsers.find(user => user.email === email);
-    if (existingUser) {
-      return NextResponse.json(
-        { error: 'User with this email already exists' },
-        { status: 400 }
-      );
-    }
-
-    // Check if username is taken
-    const existingUsername = mockUsers.find(user => user.username === username);
-    if (existingUsername) {
-      return NextResponse.json(
-        { error: 'Username is already taken' },
-        { status: 400 }
-      );
-    }
-
-    // Create new user
-    const newUser = {
-      id: mockUsers.length + 1,
-      username,
-      email,
-      password, // In real app, hash this password
-    };
-
-    // Generate token
-    const token = `token-${Date.now()}-${newUser.id}`;
-
-    const response = NextResponse.json({
-      token,
-      user: {
-        id: newUser.id,
-        username: newUser.username,
-        email: newUser.email,
+    
+    // NOTE: NestJS backend uses 'username' for login, so we pass 'email' as 'username'
+    const backendResponse = await fetch(`${API_BASE}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ username: email, password }),
     });
 
-    // Set HTTP-only cookie for middleware
-    response.cookies.set('accessToken', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 86400, // 24 hours
-    });
+    const data = await backendResponse.json();
+    
+    if (backendResponse.ok) {
+      const token = data.accessToken;
+      
+      const response = NextResponse.json({
+        token,
+        user: { id: 1, username: email, email: email } 
+      });
 
-    return response;
+      response.cookies.set('accessToken', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 86400, 
+      });
+
+      return response;
+    } else {
+      return NextResponse.json(
+        { error: data.message || data.error || 'Login failed from backend' },
+        { status: backendResponse.status }
+      );
+    }
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'An internal error occurred during login.' },
       { status: 500 }
     );
   }
