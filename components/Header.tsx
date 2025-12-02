@@ -15,7 +15,7 @@ import {
   Settings,
 } from 'lucide-react';
 // Import authentication utilities
-import { isAuthenticated, logoutUser } from '@/lib/auth'; 
+import { isAuthenticated, logoutUser } from '../lib/auth'; // FIXED: Changed alias to relative path
 
 export default function Header() {
   const router = useRouter(); // Initialize router for redirection
