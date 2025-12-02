@@ -67,7 +67,7 @@ export default function RegisterPage() {
           {error && <div className={styles.errorBox}>{error}</div>}
 
           <div className={styles.field}>
-            <label>Username</label> // Updated label from Name to Username
+            <label>Username</label>
             <input
               type="text"
               placeholder="Your unique username" // Updated placeholder
