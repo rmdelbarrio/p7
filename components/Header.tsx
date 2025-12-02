@@ -1,41 +1,57 @@
-// components/Header.tsx
 'use client';
-import { useEffect, useState } from 'react';
+
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { 
-  Home, 
-  Search, 
-  Bell, 
-  Mail, 
-  User, 
+import { useRouter } from 'next/navigation'; // Import useRouter
+import {
+  Home,
+  Search,
+  Bell,
+  Mail,
+  User,
   LogOut,
   MessageCircle,
   Users,
-  Settings
+  Settings,
 } from 'lucide-react';
+// Import authentication utilities
+import { isAuthenticated, logoutUser } from '@/lib/auth'; 
 
 export default function Header() {
+  const router = useRouter(); // Initialize router for redirection
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [windowWidth, setWindowWidth] = useState(1024);
 
+  // Function to update authentication state
+  const checkAuthStatus = useCallback(() => {
+    setIsLoggedIn(isAuthenticated());
+  }, []);
+
+  // --- Effect for Auth Check and Window Resize ---
   useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-    setIsLoggedIn(!!token);
-    
+    checkAuthStatus(); // Initial auth check
+
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
     };
     
+    // Set initial width and attach listener
     setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [checkAuthStatus]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('accessToken');
+  // --- Logout Handler (Integrated with live backend logic) ---
+  const handleLogout = async () => {
+    // 1. Call the centralized async logout function (removes tokens locally and calls backend)
+    await logoutUser(); 
+    
+    // 2. Update local state
     setIsLoggedIn(false);
-    window.location.href = '/';
+    
+    // 3. Redirect to login page
+    router.push('/login'); 
   };
 
   const NavButton = ({ icon: Icon, label, href, onClick }: any) => {
@@ -49,6 +65,9 @@ export default function Header() {
       textAlign: 'left' as const,
       transition: 'background-color 0.2s',
       backgroundColor: 'transparent',
+      color: 'inherit', // Ensure text color is inherited
+      cursor: 'pointer',
+      border: 'none',
     };
 
     const content = (
@@ -66,7 +85,7 @@ export default function Header() {
     );
 
     if (href) {
-      return <Link href={href}>{content}</Link>;
+      return <Link href={href} style={{ textDecoration: 'none' }}>{content}</Link>;
     }
 
     return content;
@@ -81,13 +100,15 @@ export default function Header() {
     padding: '16px',
     display: 'flex',
     flexDirection: 'column' as const,
+    zIndex: 10, // Ensure header is above content
+    backgroundColor: 'white',
   };
 
   return (
     <header style={headerStyle}>
       {/* Logo */}
       <div style={{ marginBottom: '16px', padding: '12px' }}>
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', color: 'inherit' }}>
           <div style={{
             width: '32px',
             height: '32px',
@@ -118,6 +139,7 @@ export default function Header() {
         <NavButton icon={Users} label="Communities" href="/communities" />
         <NavButton icon={MessageCircle} label="Threads" href="/threads" />
         
+        {/* Protected Links */}
         {isLoggedIn && (
           <>
             <NavButton icon={User} label="Profile" href="/dashboard" />
@@ -129,49 +151,20 @@ export default function Header() {
       {/* Auth Section */}
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {isLoggedIn ? (
-          <button
-            onClick={handleLogout}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '12px',
-              borderRadius: '9999px',
-              width: '100%',
-              color: '#dc2626',
-              transition: 'background-color 0.2s',
-              backgroundColor: 'transparent',
-            }}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.1)'}
-            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-          >
-            <LogOut size={24} />
-            <span style={{ fontSize: '20px', display: windowWidth >= 1024 ? 'block' : 'none' }}>
-              Logout
-            </span>
-          </button>
+          <NavButton 
+            icon={LogOut} 
+            label="Logout" 
+            onClick={handleLogout} 
+            style={{ color: '#dc2626' }}
+          />
         ) : (
           <>
-            <Link href="/login">
-              <button style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '12px',
-                borderRadius: '9999px',
-                width: '100%',
-                transition: 'background-color 0.2s',
-                backgroundColor: 'transparent',
-              }}
-              onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(15, 20, 25, 0.1)'}
-              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                <User size={24} />
-                <span style={{ fontSize: '20px', display: windowWidth >= 1024 ? 'block' : 'none' }}>
-                  Login
-                </span>
-              </button>
+            <Link href="/login" style={{ textDecoration: 'none' }}>
+              <NavButton icon={User} label="Login" href="/login" />
             </Link>
-            <Link href="/register">
+            
+            {/* Register/Sign Up Button - Styled differently */}
+            <Link href="/register" style={{ textDecoration: 'none' }}>
               <button style={{
                 backgroundColor: 'rgb(29, 155, 240)',
                 color: 'white',
@@ -180,13 +173,15 @@ export default function Header() {
                 width: '100%',
                 fontWeight: 'bold',
                 transition: 'background-color 0.2s',
+                border: 'none',
+                cursor: 'pointer',
               }}
               onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgb(26, 140, 216)'}
               onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgb(29, 155, 240)'}>
-                <span style={{ display: windowWidth >= 1024 ? 'block' : 'none' }}>
+                <span style={{ display: windowWidth >= 1024 ? 'block' : 'none', fontSize: '18px' }}>
                   Sign Up
                 </span>
-                <span style={{ display: windowWidth >= 1024 ? 'none' : 'block' }}>
+                <span style={{ display: windowWidth >= 1024 ? 'none' : 'block', fontSize: '24px' }}>
                   +
                 </span>
               </button>
