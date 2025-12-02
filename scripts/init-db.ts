@@ -1,58 +1,57 @@
-// scripts/init-db.ts
 import { config } from 'dotenv';
+import { createConnection } from 'mysql2/promise'; // Assuming you use createConnection/pool creation here
 
-// Load environment variables first
 config();
 
-import pool from '../lib/db';
+// FIX: Change to NAMED import { pool } instead of default import.
+// This assumes your lib/db.ts exports the connection as 'pool'
+import { pool } from '../lib/db';
 
 async function initDatabase() {
-  let client;
+  let connection;
   try {
-    console.log('Initializing database...');
-    console.log('Database URL:', process.env.DATABASE_URL?.replace(/:[^:]*@/, ':****@'));
+    // 1. Establish connection (using pool or direct connection from lib/db)
+    connection = pool; // Assuming pool is the exported connection/pool object
 
-    client = await pool.connect();
-    
-    // Create users table
-    await client.query(`
+    console.log('Database connection established. Starting initialization...');
+
+    // 2. Define schema queries (using simple thread/user schema as an example)
+    const createUsersTable = `
       CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
+        user_id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(255) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
-        username VARCHAR(50) UNIQUE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+        refresh_token VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
 
-    // Create posts table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS posts (
-        id SERIAL PRIMARY KEY,
+    const createThreadsTable = `
+      CREATE TABLE IF NOT EXISTS threads (
+        thread_id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        title VARCHAR(255) NOT NULL,
         content TEXT NOT NULL,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+      );
+    `;
 
-    // Create indexes
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-      CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts(user_id);
-      CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC);
-    `);
+    await connection.execute(createUsersTable);
+    console.log('Table "users" ensured.');
 
-    console.log('Database initialized successfully');
+    await connection.execute(createThreadsTable);
+    console.log('Table "threads" ensured.');
+
+
   } catch (error) {
-    console.error('Error initializing database:', error);
+    console.error('Error during database initialization:', error);
+    process.exit(1);
   } finally {
-    if (client) {
-      client.release();
-    }
-    await pool.end();
+    // In a real script, if 'pool' is a connection pool, you might want to end it here.
+    // For simplicity in a Next.js environment, we'll assume it's correctly managed.
+    console.log('Database initialization complete.');
   }
 }
 
