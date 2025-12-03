@@ -2,15 +2,15 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-// FIX: Switching to explicit relative path (../../lib/auth) with wildcard import 
-// to bypass the compiler conflict tied to the absolute alias.
-import * as Auth from '../../lib/auth'; 
+// FIX: Using absolute path alias (@/lib/auth)
+import * as Auth from '@/lib/auth'; 
 
 import Header from '@/components/Header';
 import { 
     User, Clock, CheckCircle, XCircle, Trash, Edit, PlusCircle, UserCog, List, RefreshCw
 } from 'lucide-react';
-import { API_BASE } from '../../lib/config'; 
+// FIX: Use absolute alias for config as well
+import { API_BASE } from '@/lib/config'; 
 
 // --- Constants & Types ---
 // The /users controller handles the full user management API
