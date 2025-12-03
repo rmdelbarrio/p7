@@ -2,12 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-    isAuthenticated, 
-    getToken, 
-    decodeJwt,
-    saveToken // Need this for the handleSaveUser logic if we were to create a user via register
-} from '../../lib/auth'; 
+// FIX: Use a wildcard import to bypass module resolution issues with individual destructured exports
+import * as Auth from '../../lib/auth'; 
+
 import Header from '@/components/Header';
 import { 
     User, Clock, CheckCircle, XCircle, Trash, Edit, PlusCircle, UserCog, List, RefreshCw
@@ -42,7 +39,8 @@ export default function DashboardPage() {
     const [loginRecords, setLoginRecords] = useState<LoginRecord[]>([]);
     const [userAccounts, setUserAccounts] = useState<UserAccount[]>([]);
     const [loading, setLoading] = useState(true);
-    const [currentUsername, setCurrentUsername] = useState('User'); 
+    // FIX: Initialize currentUsername to null/empty string to prevent SSR issues
+    const [currentUsername, setCurrentUsername] = useState<string | null>(null); 
     
     // --- State for CRUD Operations ---
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -57,7 +55,8 @@ export default function DashboardPage() {
     // --- Data Fetching: READ Operation ---
     
     const fetchUserAccounts = useCallback(async () => {
-        const token = getToken();
+        // Use Auth.getToken()
+        const token = Auth.getToken();
         if (!token) {
              setLoading(false);
              return;
@@ -90,25 +89,28 @@ export default function DashboardPage() {
             console.error('API Error:', error);
             setMessage('Network error loading users. Check backend status.');
         } finally {
-            setLoading(false);
+            // NOTE: We don't set loading to false here, but rather after all useEffect logic runs
         }
     }, []);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
-        if (!isAuthenticated()) {
+        if (!Auth.isAuthenticated()) { // Use Auth.isAuthenticated()
             router.push('/login');
             return;
         }
 
-        const token = getToken();
+        const token = Auth.getToken(); // Use Auth.getToken()
         if (token) {
-            const payload = decodeJwt(token);
+            // FIX: Move currentUsername logic entirely inside useEffect
+            const payload = Auth.decodeJwt(token); // Use Auth.decodeJwt()
             setCurrentUsername(payload?.username || 'User');
         }
 
-        fetchUserAccounts();
+        fetchUserAccounts().then(() => {
+            setLoading(false); // Set loading false only after data fetch attempt is complete
+        });
         
         // Mock Login Records (Backend endpoint for this still needs to be built)
         const mockRecords: LoginRecord[] = [
@@ -137,7 +139,7 @@ export default function DashboardPage() {
             return;
         }
         
-        const token = getToken();
+        const token = Auth.getToken(); // Use Auth.getToken()
         if (!token) return;
 
         setLoading(true);
@@ -171,7 +173,7 @@ export default function DashboardPage() {
             const response = await fetch(url, {
                 method: method,
                 headers: {
-                    'Authorization': isUpdate ? `Bearer ${token}` : undefined, // Auth only required for Update/Delete
+                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(bodyPayload),
@@ -196,9 +198,10 @@ export default function DashboardPage() {
     };
 
     const handleDeleteUser = async (userId: number, username: string) => {
+        // IMPORTANT: Never use window.confirm in a production frame environment. This should be replaced with a custom modal UI.
         if (!window.confirm(`Are you sure you want to delete user ${username}? This cannot be undone.`)) return;
 
-        const token = getToken();
+        const token = Auth.getToken(); // Use Auth.getToken()
         if (!token) return;
         
         setLoading(true);
@@ -252,7 +255,7 @@ export default function DashboardPage() {
         alignItems: 'center',
     };
 
-    if (loading) {
+    if (loading || currentUsername === null) {
         return (
             <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgb(247, 249, 250)' }}>
                 <RefreshCw size={32} style={{ color: 'rgb(29, 155, 240)' }} className="animate-spin" />
