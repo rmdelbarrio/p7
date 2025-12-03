@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-// FIX: Using absolute path alias (@/lib/auth) is the most robust way to solve build resolution errors.
-import * as Auth from '@/lib/auth'; 
+// FIX: Switching to explicit relative path (../../lib/auth) with wildcard import 
+// to bypass the compiler conflict tied to the absolute alias.
+import * as Auth from '../../lib/auth'; 
 
 import Header from '@/components/Header';
 import { 
@@ -285,7 +286,7 @@ export default function DashboardPage() {
                         <h1 style={{ fontSize: '32px', fontWeight: 'bold', color: 'rgb(20, 23, 26)', display: 'flex', alignItems: 'center' }}>
                             <UserCog size={32} style={{ color: 'rgb(29, 155, 240)', marginRight: '10px' }} />
                             User Console
-                        </h1>
+                        </h1 >
                         <p style={{ fontSize: '14px', color: 'rgb(83, 100, 113)', marginTop: '4px' }}>
                             Welcome, {currentUsername}. Manage users and monitor activity.
                         </p>
@@ -406,7 +407,7 @@ export default function DashboardPage() {
                         <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: 'rgb(20, 23, 26)', marginBottom: '16px', borderBottom: '1px solid rgb(239, 243, 244)', paddingBottom: '16px', display: 'flex', alignItems: 'center' }}>
                             <Clock size={20} style={{ marginRight: '8px', color: 'rgb(83, 100, 113)' }} />
                             Recent Login Activity (MOCK)
-                        </h2>
+                        </h2 >
                         <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                             {loginRecords.map((record) => (
                                 <div key={record.id} style={{ display: 'flex', alignItems: 'flex-start', padding: '12px 0', borderBottom: '1px solid rgb(247, 249, 250)' }}>
