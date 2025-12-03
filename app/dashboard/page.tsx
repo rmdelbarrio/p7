@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-// FIX: Use a wildcard import to bypass module resolution issues with individual destructured exports
-import * as Auth from '../../lib/auth'; 
+// FIX: Using absolute path alias (@/lib/auth) is the most robust way to solve build resolution errors.
+import * as Auth from '@/lib/auth'; 
 
 import Header from '@/components/Header';
 import { 
