@@ -1,17 +1,24 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
     isAuthenticated, 
     getToken, 
-    decodeJwt, 
-    getUserRole 
+    decodeJwt,
+    saveToken // Need this for the handleSaveUser logic if we were to create a user via register
 } from '../../lib/auth'; 
 import Header from '@/components/Header';
-import { LogIn, User, Clock, CheckCircle, XCircle, Trash, Edit, PlusCircle, AlertTriangle } from 'lucide-react';
+import { 
+    User, Clock, CheckCircle, XCircle, Trash, Edit, PlusCircle, UserCog, List, RefreshCw
+} from 'lucide-react';
+import { API_BASE } from '../../lib/config'; 
 
-// --- Types ---
+// --- Constants & Types ---
+// The /users controller handles the full user management API
+const USERS_API_URL = API_BASE.replace('/auth', '/users'); 
+const REGISTER_API_URL = `${API_BASE}/register`; // Use existing auth/register for user creation
+
 interface LoginRecord {
   id: number;
   userId: number;
@@ -21,183 +28,222 @@ interface LoginRecord {
   userAgent: string;
 }
 
-// Mock User Data for CRUD Demo (In a real app, this would be fetched from the API)
 interface UserAccount {
-    id: number;
+    id: number; // Corresponds to user_id in DB
     username: string;
     role: 'user' | 'admin';
-    status: 'Active' | 'Suspended';
+    // Status is primarily visual on frontend, derived from backend data if available
+    status: 'Active' | 'Suspended'; 
 }
-
-const initialUsers: UserAccount[] = [
-    { id: 1, username: 'SA1', role: 'admin', status: 'Active' },
-    { id: 2, username: 'user_a', role: 'user', status: 'Active' },
-    { id: 3, username: 'user_b', role: 'user', status: 'Suspended' },
-];
 
 
 export default function DashboardPage() {
     const router = useRouter();
     const [loginRecords, setLoginRecords] = useState<LoginRecord[]>([]);
-    const [userAccounts, setUserAccounts] = useState<UserAccount[]>(initialUsers);
+    const [userAccounts, setUserAccounts] = useState<UserAccount[]>([]);
     const [loading, setLoading] = useState(true);
-    const [currentUsername, setCurrentUsername] = useState('...');
-    const [isAdmin, setIsAdmin] = useState(false);
+    const [currentUsername, setCurrentUsername] = useState('User'); 
     
-    // --- State for CRUD Operations (MOCK) ---
+    // --- State for CRUD Operations ---
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
     const [newUsername, setNewUsername] = useState('');
     const [newRole, setNewRole] = useState<'user' | 'admin'>('user');
+    const [newStatus, setNewStatus] = useState<'Active' | 'Suspended'>('Active');
+    const [initialPassword, setInitialPassword] = useState('');
     const [message, setMessage] = useState('');
 
-    // --- Utility Functions ---
 
-    // Helper to decode JWT payload to get the username for display
-    const decodeUsername = () => {
+    // --- Data Fetching: READ Operation ---
+    
+    const fetchUserAccounts = useCallback(async () => {
         const token = getToken();
-        if (!token) return 'Guest';
-        try {
-            const payload = decodeJwt(token);
-            return payload ? payload.username : 'Admin';
-        } catch (e) {
-            return 'Admin';
+        if (!token) {
+             setLoading(false);
+             return;
         }
-    }
 
-    // --- Data Fetching ---
+        try {
+            // Live API Call to NestJS Users Controller (GET /users)
+            const response = await fetch(USERS_API_URL, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+            
+            if (response.ok) {
+                const data: any[] = await response.json();
+                // Map the data to include a simplified status field for the UI
+                setUserAccounts(data.map(u => ({
+                    id: u.user_id,
+                    username: u.username,
+                    role: u.role || 'user',
+                    status: 'Active', // Mocked as active since there's no DB status field
+                })));
+            } else {
+                const errorData = await response.json();
+                setMessage(errorData.message || 'Failed to load user accounts from API.');
+                setUserAccounts([]);
+            }
+        } catch (error) {
+            console.error('API Error:', error);
+            setMessage('Network error loading users. Check backend status.');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
-        const authCheck = isAuthenticated();
-        const roleCheck = getUserRole() === 'admin';
-
-        if (!authCheck) {
+        if (!isAuthenticated()) {
             router.push('/login');
             return;
         }
 
-        setIsAdmin(roleCheck);
-        setCurrentUsername(decodeUsername());
-
-        if (roleCheck) {
-            fetchLoginRecords();
-            // In a real app, you would fetch userAccounts from the API here too
-        } else {
-            setLoading(false);
+        const token = getToken();
+        if (token) {
+            const payload = decodeJwt(token);
+            setCurrentUsername(payload?.username || 'User');
         }
-    }, [router]);
 
-    const fetchLoginRecords = async () => {
-        try {
-            // NOTE: This remains MOCK data as the backend API endpoint for logs doesn't exist yet
-            const mockRecords: LoginRecord[] = [
-                { id: 1, userId: 1, username: 'SA1', timestamp: new Date().toISOString(), ipAddress: '192.168.1.1', userAgent: 'Chrome on Mac' },
-                { id: 2, userId: 1, username: 'SA1', timestamp: new Date(Date.now() - 3600000).toISOString(), ipAddress: '192.168.1.1', userAgent: 'Chrome on Mac' },
-                { id: 3, userId: 2, username: 'user_a', timestamp: new Date(Date.now() - 7200000).toISOString(), ipAddress: '74.125.0.1', userAgent: 'Firefox on Linux' },
-            ];
-            setLoginRecords(mockRecords);
-        } catch (error) {
-            console.error('Error fetching login records:', error);
-            setMessage("Failed to load records.");
-        } finally {
-            setLoading(false);
-        }
-    };
+        fetchUserAccounts();
+        
+        // Mock Login Records (Backend endpoint for this still needs to be built)
+        const mockRecords: LoginRecord[] = [
+            { id: 1, userId: 1, username: 'SA1', timestamp: new Date().toISOString(), ipAddress: '192.168.1.1', userAgent: 'Chrome on Mac' },
+            { id: 2, userId: 2, username: 'TestUser', timestamp: new Date(Date.now() - 3600000).toISOString(), ipAddress: '74.125.0.1', userAgent: 'Firefox' },
+        ];
+        setLoginRecords(mockRecords.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+
+    }, [router, fetchUserAccounts]);
     
-    // --- CRUD Handlers (MOCK: Client-side only) ---
+    // --- CRUD Handlers (Live API Calls) ---
 
     const handleOpenModal = (user: UserAccount | null = null) => {
         setEditingUser(user);
         setNewUsername(user ? user.username : '');
         setNewRole(user ? user.role : 'user');
+        setNewStatus(user ? user.status : 'Active');
+        setInitialPassword(''); 
         setMessage('');
         setIsModalOpen(true);
     };
 
-    const handleSaveUser = () => {
+    const handleSaveUser = async () => {
         if (!newUsername.trim()) {
             setMessage("Username cannot be empty.");
             return;
         }
+        
+        const token = getToken();
+        if (!token) return;
 
-        if (editingUser) {
-            // Update Operation
-            setUserAccounts(userAccounts.map(u => 
-                u.id === editingUser.id ? { ...u, username: newUsername, role: newRole } : u
-            ));
-            setMessage(`User ${newUsername} updated! (Mock Success)`);
-        } else {
-            // Create Operation
-            const newUser: UserAccount = {
-                id: Date.now(), // Mock ID
-                username: newUsername,
-                role: newRole,
-                status: 'Active',
-            };
-            setUserAccounts([...userAccounts, newUser]);
-            setMessage(`User ${newUsername} created! (Mock Success)`);
+        setLoading(true);
+
+        try {
+            const isUpdate = !!editingUser;
+            
+            let url: string;
+            let method: 'POST' | 'PUT';
+            let bodyPayload: any;
+
+            if (isUpdate) {
+                // UPDATE (PUT request to /users/:id)
+                url = `${USERS_API_URL}/${editingUser?.id}`;
+                method = 'PUT';
+                // Your UsersController only expects role/status change for now
+                bodyPayload = { role: newRole, status: newStatus }; 
+            } else {
+                // CREATE (POST request to /auth/register)
+                if (!initialPassword) {
+                     setMessage("Password is required for new users.");
+                     setLoading(false);
+                     return;
+                }
+                url = REGISTER_API_URL;
+                method = 'POST';
+                // Note: Auth/register only uses username/password, role is DEFAULTED by the backend DB
+                bodyPayload = { username: newUsername, password: initialPassword }; 
+            }
+
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Authorization': isUpdate ? `Bearer ${token}` : undefined, // Auth only required for Update/Delete
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(bodyPayload),
+            });
+
+            if (response.ok) {
+                setMessage(isUpdate ? `User ${newUsername} updated! (Role: ${newRole})` : `User ${newUsername} created!`);
+                setIsModalOpen(false); 
+            } else {
+                const errorData = await response.json();
+                // If register fails due to duplicate username, the message will show here
+                setMessage(errorData.message || `${isUpdate ? 'Update' : 'Creation'} failed.`);
+            }
+        } catch (error) {
+            console.error('CRUD API error:', error);
+            setMessage('Network error during user management.');
+        } finally {
+            await fetchUserAccounts(); // Re-fetch all users to reflect changes
+            setLoading(false);
+            setEditingUser(null);
         }
-        setIsModalOpen(false);
     };
 
-    const handleDeleteUser = (userId: number) => {
-        if (userId === 1) { // Prevent deleting the mock SA1 admin
-             setMessage("Cannot delete Super Admin (SA1) in mock mode.");
-             return;
+    const handleDeleteUser = async (userId: number, username: string) => {
+        if (!window.confirm(`Are you sure you want to delete user ${username}? This cannot be undone.`)) return;
+
+        const token = getToken();
+        if (!token) return;
+        
+        setLoading(true);
+
+        try {
+            // Live API Call to NestJS Users Controller (DELETE /users/:id)
+            const response = await fetch(`${USERS_API_URL}/${userId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.status === 204) { // 204 No Content is successful deletion
+                setMessage(`User ${username} deleted successfully.`);
+            } else {
+                const errorData = await response.json();
+                setMessage(errorData.message || 'Deletion failed.');
+            }
+        } catch (error) {
+            console.error('Delete API error:', error);
+            setMessage('Network error during deletion.');
+        } finally {
+            await fetchUserAccounts();
+            setLoading(false);
         }
-        // Delete Operation
-        setUserAccounts(userAccounts.filter(u => u.id !== userId));
-        setMessage(`User ID ${userId} deleted! (Mock Success)`);
     };
 
-    // --- Conditional Render ---
+    // --- Styling and Conditional Render ---
 
-    const dashboardStyle = {
+    const dashboardStyle: React.CSSProperties = {
         minHeight: '100vh',
-        backgroundColor: 'rgb(247, 249, 250)', // Light Gray background
+        backgroundColor: 'rgb(247, 249, 250)', 
         padding: '16px',
         width: '100%',
+        fontFamily: '"Inter", sans-serif',
     };
-
-    if (loading) {
-        return (
-             <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgb(247, 249, 250)' }}>
-                <Clock size={32} style={{ color: 'rgb(29, 155, 240)' }} className="animate-spin" />
-                <span style={{ marginLeft: '12px', fontSize: '18px', color: 'rgb(83, 100, 113)' }}>Loading Dashboard...</span>
-            </div>
-        );
-    }
-
-    if (!isAdmin) {
-        return (
-             <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgb(247, 249, 250)', padding: '24px' }}>
-                <AlertTriangle size={64} style={{ color: 'rgb(255, 0, 0)', marginBottom: '16px' }} />
-                <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: 'rgb(20, 23, 26)', marginBottom: '8px' }}>Access Denied</h1>
-                <p style={{ fontSize: '16px', color: 'rgb(83, 100, 113)', marginBottom: '24px' }}>You must be an administrator to view this page.</p>
-                <button
-                    onClick={() => router.push('/')}
-                    style={{ padding: '10px 20px', backgroundColor: 'rgb(29, 155, 240)', color: 'white', borderRadius: '9999px', fontWeight: 'bold', transition: 'background-color 0.2s', border: 'none' }}
-                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgb(26, 140, 216)'}
-                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgb(29, 155, 240)'}
-                >
-                    Go Home
-                </button>
-            </div>
-        );
-    }
     
-    // --- Styles for Twitter/mBoard Theme ---
-    const cardStyle = {
+    const cardStyle: React.CSSProperties = {
         backgroundColor: 'white',
         borderRadius: '16px',
         border: '1px solid rgb(239, 243, 244)',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.04)',
         padding: '24px',
     };
 
-    const headerContentStyle = {
+    const headerContentStyle: React.CSSProperties = {
         borderBottom: '1px solid rgb(239, 243, 244)',
         paddingBottom: '16px',
         marginBottom: '24px',
@@ -205,61 +251,99 @@ export default function DashboardPage() {
         justifyContent: 'space-between',
         alignItems: 'center',
     };
-    
+
+    if (loading) {
+        return (
+            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgb(247, 249, 250)' }}>
+                <RefreshCw size={32} style={{ color: 'rgb(29, 155, 240)' }} className="animate-spin" />
+                <span style={{ marginLeft: '12px', fontSize: '18px', color: 'rgb(83, 100, 113)' }}>Loading Dashboard...</span>
+            </div>
+        );
+    }
+
     // --- Main Render ---
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh' }}>
             <Header /> 
-            <main style={{ flex: 1, padding: '16px', marginLeft: '80px', paddingTop: '24px', maxWidth: '1000px', margin: '0 auto', ...dashboardStyle }}>
+            
+            <main style={{ 
+                flex: 1, 
+                padding: '16px', 
+                maxWidth: '1200px', 
+                margin: '0 auto', 
+                paddingTop: '24px',
+                ...dashboardStyle 
+            }}>
                 
                 {/* Dashboard Header */}
                 <div style={headerContentStyle}>
                     <div>
                         <h1 style={{ fontSize: '32px', fontWeight: 'bold', color: 'rgb(20, 23, 26)', display: 'flex', alignItems: 'center' }}>
-                            <User size={32} style={{ color: 'rgb(29, 155, 240)', marginRight: '10px' }} />
-                            Admin Console
+                            <UserCog size={32} style={{ color: 'rgb(29, 155, 240)', marginRight: '10px' }} />
+                            User Console
                         </h1>
                         <p style={{ fontSize: '14px', color: 'rgb(83, 100, 113)', marginTop: '4px' }}>
                             Welcome, {currentUsername}. Manage users and monitor activity.
                         </p>
                     </div>
                     {message && (
-                        <div style={{ padding: '8px 12px', borderRadius: '8px', backgroundColor: 'rgb(240, 255, 240)', color: 'rgb(21, 128, 61)', border: '1px solid rgb(21, 128, 61)' }}>
+                        <div style={{ 
+                            padding: '8px 12px', 
+                            borderRadius: '8px', 
+                            backgroundColor: message.includes('failed') || message.includes('error') ? 'rgb(255, 240, 240)' : 'rgb(220, 240, 255)',
+                            color: message.includes('failed') || message.includes('error') ? 'rgb(255, 0, 0)' : 'rgb(29, 155, 240)',
+                            border: '1px solid',
+                            borderColor: message.includes('failed') || message.includes('error') ? 'rgb(255, 0, 0)' : 'rgb(29, 155, 240)',
+                            fontWeight: '500',
+                            transition: 'opacity 0.5s'
+                        }}>
                             {message}
                         </div>
                     )}
                 </div>
 
-                {/* --- Stats and User Management Grid --- */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', marginBottom: '32px' }}>
+                {/* --- User Management Grid --- */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px', marginBottom: '32px' }}>
                     
-                    {/* User Management Card */}
-                    <div style={{ ...cardStyle, gridColumn: 'span 2', display: 'flex', flexDirection: 'column' }}>
+                    {/* User Management Card (CRUD) */}
+                    <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgb(239, 243, 244)', paddingBottom: '16px' }}>
-                            <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: 'rgb(20, 23, 26)' }}>
+                            <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: 'rgb(20, 23, 26)', display: 'flex', alignItems: 'center' }}>
+                                <User size={20} style={{ marginRight: '8px', color: 'rgb(83, 100, 113)' }} />
                                 User Accounts ({userAccounts.length})
                             </h2>
                             <button 
                                 onClick={() => handleOpenModal()}
-                                style={{ padding: '8px 16px', backgroundColor: 'rgb(29, 155, 240)', color: 'white', borderRadius: '9999px', fontWeight: 'bold', border: 'none', cursor: 'pointer', transition: 'background-color 0.2s' }}
+                                style={{ 
+                                    padding: '8px 16px', 
+                                    backgroundColor: 'rgb(29, 155, 240)', 
+                                    color: 'white', 
+                                    borderRadius: '9999px', 
+                                    fontWeight: 'bold', 
+                                    border: 'none', 
+                                    cursor: 'pointer', 
+                                    transition: 'background-color 0.2s',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                }}
                                 onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgb(26, 140, 216)'}
                                 onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgb(29, 155, 240)'}
                             >
-                                <PlusCircle size={16} style={{ marginRight: '8px', display: 'inline-block', verticalAlign: 'middle' }} />
-                                <span style={{ verticalAlign: 'middle' }}>New User</span>
+                                <PlusCircle size={16} style={{ marginRight: '8px' }} />
+                                Add User
                             </button>
                         </div>
                         
                         {/* User List Table */}
                         <div style={{ overflowX: 'auto' }}>
-                            <table style={{ minWidth: '100%', borderCollapse: 'collapse' }}>
+                            <table style={{ minWidth: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                                 <thead>
                                     <tr style={{ borderBottom: '1px solid rgb(239, 243, 244)', backgroundColor: 'rgb(247, 249, 250)' }}>
-                                        <th style={{ padding: '12px', textAlign: 'left', color: 'rgb(83, 100, 113)', fontSize: '12px', fontWeight: 'bold' }}>USERNAME</th>
-                                        <th style={{ padding: '12px', textAlign: 'left', color: 'rgb(83, 100, 113)', fontSize: '12px', fontWeight: 'bold' }}>ROLE</th>
-                                        <th style={{ padding: '12px', textAlign: 'left', color: 'rgb(83, 100, 113)', fontSize: '12px', fontWeight: 'bold' }}>STATUS</th>
-                                        <th style={{ padding: '12px', textAlign: 'left', color: 'rgb(83, 100, 113)', fontSize: '12px', fontWeight: 'bold' }}>ACTIONS</th>
+                                        <th style={{ padding: '12px', textAlign: 'left', color: 'rgb(83, 100, 113)', fontSize: '12px', fontWeight: 'bold', width: '30%' }}>USERNAME</th>
+                                        <th style={{ padding: '12px', textAlign: 'left', color: 'rgb(83, 100, 113)', fontSize: '12px', fontWeight: 'bold', width: '20%' }}>ROLE</th>
+                                        <th style={{ padding: '12px', textAlign: 'left', color: 'rgb(83, 100, 113)', fontSize: '12px', fontWeight: 'bold', width: '20%' }}>STATUS</th>
+                                        <th style={{ padding: '12px', textAlign: 'left', color: 'rgb(83, 100, 113)', fontSize: '12px', fontWeight: 'bold', width: '15%' }}>ACTIONS</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -272,7 +356,7 @@ export default function DashboardPage() {
                                                     borderRadius: '8px', 
                                                     fontSize: '12px', 
                                                     fontWeight: 'bold',
-                                                    backgroundColor: user.role === 'admin' ? 'rgb(255, 204, 204)' : 'rgb(204, 255, 204)',
+                                                    backgroundColor: user.role === 'admin' ? 'rgb(255, 240, 240)' : 'rgb(240, 255, 240)',
                                                     color: user.role === 'admin' ? 'rgb(255, 0, 0)' : 'rgb(0, 128, 0)'
                                                 }}>
                                                     {user.role.toUpperCase()}
@@ -293,7 +377,7 @@ export default function DashboardPage() {
                                                     <Edit size={16} />
                                                 </button>
                                                 <button 
-                                                    onClick={() => handleDeleteUser(user.id)}
+                                                    onClick={() => handleDeleteUser(user.id, user.username)}
                                                     title="Delete User"
                                                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgb(255, 0, 0)' }}
                                                 >
@@ -302,24 +386,35 @@ export default function DashboardPage() {
                                             </td>
                                         </tr>
                                     ))}
+                                    {userAccounts.length === 0 && (
+                                        <tr>
+                                            <td colSpan={4} style={{ textAlign: 'center', padding: '16px', color: 'rgb(83, 100, 113)' }}>
+                                                No users found. Start by adding a new user.
+                                            </td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
                     {/* Login Monitoring Card */}
-                    <div style={cardStyle}>
-                        <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: 'rgb(20, 23, 26)', marginBottom: '16px', borderBottom: '1px solid rgb(239, 243, 244)', paddingBottom: '16px' }}>
-                            Recent Logins
+                    <div style={{ ...cardStyle, marginTop: '24px' }}>
+                        <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: 'rgb(20, 23, 26)', marginBottom: '16px', borderBottom: '1px solid rgb(239, 243, 244)', paddingBottom: '16px', display: 'flex', alignItems: 'center' }}>
+                            <Clock size={20} style={{ marginRight: '8px', color: 'rgb(83, 100, 113)' }} />
+                            Recent Login Activity (MOCK)
                         </h2>
                         <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                             {loginRecords.map((record) => (
-                                <div key={record.id} style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid rgb(247, 249, 250)' }}>
-                                    <LogIn size={20} style={{ color: 'rgb(29, 155, 240)', marginRight: '10px' }} />
+                                <div key={record.id} style={{ display: 'flex', alignItems: 'flex-start', padding: '12px 0', borderBottom: '1px solid rgb(247, 249, 250)' }}>
+                                    <List size={20} style={{ color: 'rgb(29, 155, 240)', marginRight: '10px', flexShrink: 0 }} />
                                     <div>
                                         <p style={{ fontSize: '14px', fontWeight: 'bold', color: 'rgb(20, 23, 26)' }}>{record.username}</p>
                                         <p style={{ fontSize: '12px', color: 'rgb(83, 100, 113)' }}>
                                             {new Date(record.timestamp).toLocaleString()} from {record.ipAddress}
+                                        </p>
+                                        <p style={{ fontSize: '10px', color: 'rgb(120, 120, 120)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '300px' }}>
+                                            Agent: {record.userAgent.substring(0, 50)}...
                                         </p>
                                     </div>
                                 </div>
@@ -356,8 +451,7 @@ export default function DashboardPage() {
                                 onChange={(e) => setNewUsername(e.target.value)}
                                 placeholder="Enter username"
                                 required
-                                disabled={editingUser && editingUser.id === 1} // Prevent SA1 edit
-                                style={{ padding: '10px', borderRadius: '8px', border: '1px solid rgb(204, 214, 221)' }}
+                                style={{ padding: '10px', borderRadius: '8px', border: '1px solid rgb(204, 214, 221)', backgroundColor: 'white' }}
                             />
                             
                             <label style={{ fontWeight: 'bold', fontSize: '14px', color: 'rgb(20, 23, 26)' }}>Role</label>
@@ -365,24 +459,52 @@ export default function DashboardPage() {
                                 value={newRole}
                                 onChange={(e) => setNewRole(e.target.value as 'user' | 'admin')}
                                 required
-                                disabled={editingUser && editingUser.id === 1} // Prevent SA1 role change
-                                style={{ padding: '10px', borderRadius: '8px', border: '1px solid rgb(204, 214, 221)' }}
+                                style={{ padding: '10px', borderRadius: '8px', border: '1px solid rgb(204, 214, 221)', backgroundColor: 'white' }}
                             >
                                 <option value="user">User</option>
                                 <option value="admin">Admin</option>
                             </select>
 
+                             <label style={{ fontWeight: 'bold', fontSize: '14px', color: 'rgb(20, 23, 26)' }}>Status (Visual Only)</label>
+                            <select
+                                value={newStatus}
+                                onChange={(e) => setNewStatus(e.target.value as 'Active' | 'Suspended')}
+                                required
+                                style={{ padding: '10px', borderRadius: '8px', border: '1px solid rgb(204, 214, 221)' }}
+                            >
+                                <option value="Active">Active</option>
+                                <option value="Suspended">Suspended</option>
+                            </select>
+
+                            {!editingUser && ( // Only ask for password on creation
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                    <label style={{ fontWeight: 'bold', fontSize: '14px', color: 'rgb(20, 23, 26)' }}>Initial Password</label>
+                                    <input
+                                        type="password"
+                                        value={initialPassword}
+                                        onChange={(e) => setInitialPassword(e.target.value)}
+                                        placeholder="Set initial password (required for creation)"
+                                        required
+                                        style={{ padding: '10px', borderRadius: '8px', border: '1px solid rgb(204, 214, 221)' }}
+                                    />
+                                </div>
+                            )}
+
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                                 <button 
                                     type="button" 
                                     onClick={() => setIsModalOpen(false)}
-                                    style={{ padding: '10px 20px', backgroundColor: 'transparent', color: 'rgb(83, 100, 113)', border: '1px solid rgb(204, 214, 221)', borderRadius: '9999px', cursor: 'pointer' }}
+                                    style={{ padding: '10px 20px', backgroundColor: 'transparent', color: 'rgb(83, 100, 113)', border: '1px solid rgb(204, 214, 221)', borderRadius: '9999px', cursor: 'pointer', fontWeight: 'bold', transition: 'background-color 0.2s' }}
+                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgb(239, 243, 244)'}
+                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                 >
                                     Cancel
                                 </button>
                                 <button 
                                     type="submit"
-                                    style={{ padding: '10px 20px', backgroundColor: 'rgb(29, 155, 240)', color: 'white', borderRadius: '9999px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}
+                                    style={{ padding: '10px 20px', backgroundColor: 'rgb(29, 155, 240)', color: 'white', borderRadius: '9999px', fontWeight: 'bold', border: 'none', cursor: 'pointer', transition: 'background-color 0.2s' }}
+                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgb(26, 140, 216)'}
+                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgb(29, 155, 240)'}
                                 >
                                     Save Changes
                                 </button>
