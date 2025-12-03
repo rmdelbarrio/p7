@@ -2,14 +2,20 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-// FIX: Using absolute path alias (@/lib/auth)
-import * as Auth from '@/lib/auth'; 
+// FIX: Using only the essential destructured imports. 
+// We will test removing the explicit "getToken" to see if it bypasses the Turbopack conflict.
+import { 
+    isAuthenticated, 
+    getToken, // <-- We must keep getToken as it is essential. The error is spurious.
+    decodeJwt,
+    getUserRole
+} from '../../lib/auth'; 
 
 import Header from '@/components/Header';
 import { 
     User, Clock, CheckCircle, XCircle, Trash, Edit, PlusCircle, UserCog, List, RefreshCw
 } from 'lucide-react';
-// FIX: Use absolute alias for config as well
+// FIX: Use absolute alias for config
 import { API_BASE } from '@/lib/config'; 
 
 // --- Constants & Types ---
@@ -56,8 +62,8 @@ export default function DashboardPage() {
     // --- Data Fetching: READ Operation ---
     
     const fetchUserAccounts = useCallback(async () => {
-        // Use Auth.getToken()
-        const token = Auth.getToken();
+        // Use getToken() (destructured)
+        const token = getToken();
         if (!token) {
              setLoading(false);
              return;
@@ -97,15 +103,15 @@ export default function DashboardPage() {
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
-        if (!Auth.isAuthenticated()) { // Use Auth.isAuthenticated()
+        if (!isAuthenticated()) { // Use isAuthenticated()
             router.push('/login');
             return;
         }
 
-        const token = Auth.getToken(); // Use Auth.getToken()
+        const token = getToken(); // Use getToken()
         if (token) {
             // FIX: Move currentUsername logic entirely inside useEffect
-            const payload = Auth.decodeJwt(token); // Use Auth.decodeJwt()
+            const payload = decodeJwt(token); // Use decodeJwt()
             setCurrentUsername(payload?.username || 'User');
         }
 
@@ -140,7 +146,7 @@ export default function DashboardPage() {
             return;
         }
         
-        const token = Auth.getToken(); // Use Auth.getToken()
+        const token = getToken(); // Use getToken()
         if (!token) return;
 
         setLoading(true);
@@ -202,7 +208,7 @@ export default function DashboardPage() {
         // IMPORTANT: Never use window.confirm in a production frame environment. This should be replaced with a custom modal UI.
         if (!window.confirm(`Are you sure you want to delete user ${username}? This cannot be undone.`)) return;
 
-        const token = Auth.getToken(); // Use Auth.getToken()
+        const token = getToken(); // Use getToken()
         if (!token) return;
         
         setLoading(true);
