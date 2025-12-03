@@ -5,17 +5,20 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation'; // Import useRouter
 import {
   Home,
-  Search,
-  Bell,
-  Mail,
   User,
   LogOut,
-  MessageCircle,
-  Users,
-  Settings,
+  UserCog, // Using UserCog for Dashboard/Profile
+  LogIn,
+  UserPlus,
 } from 'lucide-react';
-// Import authentication utilities
-import { isAuthenticated, logoutUser } from '../lib/auth'; // FIXED: Changed alias to relative path
+// Import authentication utilities using the explicit relative path
+import { isAuthenticated, logoutUser } from '../../lib/auth'; 
+
+// Define the core navigation items (Home and Dashboard/Profile)
+const navItems = [
+  { href: '/', icon: Home, label: 'Home' },
+  // Dashboard is implicitly handled by the protected links section below
+];
 
 export default function Header() {
   const router = useRouter(); // Initialize router for redirection
@@ -24,6 +27,7 @@ export default function Header() {
 
   // Function to update authentication state
   const checkAuthStatus = useCallback(() => {
+    // FIX: Using isAuthenticated from the relative path
     setIsLoggedIn(isAuthenticated());
   }, []);
 
@@ -44,7 +48,7 @@ export default function Header() {
 
   // --- Logout Handler (Integrated with live backend logic) ---
   const handleLogout = async () => {
-    // 1. Call the centralized async logout function (removes tokens locally and calls backend)
+    // 1. Call the centralized async logout function
     await logoutUser(); 
     
     // 2. Update local state
@@ -65,7 +69,7 @@ export default function Header() {
       textAlign: 'left' as const,
       transition: 'background-color 0.2s',
       backgroundColor: 'transparent',
-      color: 'inherit', // Ensure text color is inherited
+      color: 'inherit',
       cursor: 'pointer',
       border: 'none',
     };
@@ -85,6 +89,7 @@ export default function Header() {
     );
 
     if (href) {
+      // FIX: Ensure Link textDecoration is set to none
       return <Link href={href} style={{ textDecoration: 'none' }}>{content}</Link>;
     }
 
@@ -100,7 +105,7 @@ export default function Header() {
     padding: '16px',
     display: 'flex',
     flexDirection: 'column' as const,
-    zIndex: 10, // Ensure header is above content
+    zIndex: 10,
     backgroundColor: 'white',
   };
 
@@ -133,17 +138,13 @@ export default function Header() {
       {/* Navigation */}
       <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <NavButton icon={Home} label="Home" href="/" />
-        <NavButton icon={Search} label="Explore" href="/explore" />
-        <NavButton icon={Bell} label="Notifications" href="/notifications" />
-        <NavButton icon={Mail} label="Messages" href="/messages" />
-        <NavButton icon={Users} label="Communities" href="/communities" />
-        <NavButton icon={MessageCircle} label="Threads" href="/threads" />
+        {/* Removed: Explore, Notifications, Messages, Communities, Threads */}
         
-        {/* Protected Links */}
+        {/* Protected Links (Dashboard/Profile) */}
         {isLoggedIn && (
           <>
-            <NavButton icon={User} label="Profile" href="/dashboard" />
-            <NavButton icon={Settings} label="Settings" href="/settings" />
+            {/* Dashboard is used for profile/settings in this simplified view */}
+            <NavButton icon={UserCog} label="Dashboard" href="/dashboard" />
           </>
         )}
       </nav>
@@ -151,19 +152,22 @@ export default function Header() {
       {/* Auth Section */}
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {isLoggedIn ? (
+          // LOGOUT BUTTON
           <NavButton 
             icon={LogOut} 
             label="Logout" 
             onClick={handleLogout} 
-            style={{ color: '#dc2626' }}
+            // Inline style adjustment to use red color on hover/text
+            style={{ color: 'rgb(220, 38, 38)' }} 
           />
         ) : (
           <>
+            {/* LOGIN LINK */}
             <Link href="/login" style={{ textDecoration: 'none' }}>
-              <NavButton icon={User} label="Login" href="/login" />
+              <NavButton icon={LogIn} label="Login" href="/login" />
             </Link>
             
-            {/* Register/Sign Up Button - Styled differently */}
+            {/* REGISTER/SIGN UP BUTTON */}
             <Link href="/register" style={{ textDecoration: 'none' }}>
               <button style={{
                 backgroundColor: 'rgb(29, 155, 240)',
