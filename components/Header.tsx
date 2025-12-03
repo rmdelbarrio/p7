@@ -5,30 +5,30 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation'; // Import useRouter
 import {
   Home,
-  User,
   LogOut,
-  UserCog, // Using UserCog for Dashboard/Profile
+  UserCog, // Used for Dashboard/Profile
   LogIn,
   UserPlus,
+  MessageCircle, // Using MessageCircle for Messages link
 } from 'lucide-react';
-// Import authentication utilities using the explicit relative path
-import { isAuthenticated, logoutUser } from '../../lib/auth'; 
+// FIX: Using wildcard import with explicit relative path to bypass Vercel/Turbopack error.
+import * as Auth from '../../lib/auth'; 
 
-// Define the core navigation items (Home and Dashboard/Profile)
-const navItems = [
+// Define the core navigation items (Home and Messages)
+const coreNavItems = [
   { href: '/', icon: Home, label: 'Home' },
-  // Dashboard is implicitly handled by the protected links section below
+  { href: '/messages', icon: MessageCircle, label: 'Messages' }, // Added Messages link
 ];
 
 export default function Header() {
-  const router = useRouter(); // Initialize router for redirection
+  const router = useRouter(); 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [windowWidth, setWindowWidth] = useState(1024);
 
   // Function to update authentication state
   const checkAuthStatus = useCallback(() => {
-    // FIX: Using isAuthenticated from the relative path
-    setIsLoggedIn(isAuthenticated());
+    // Use Auth.isAuthenticated()
+    setIsLoggedIn(Auth.isAuthenticated());
   }, []);
 
   // --- Effect for Auth Check and Window Resize ---
@@ -39,7 +39,6 @@ export default function Header() {
       setWindowWidth(window.innerWidth);
     };
     
-    // Set initial width and attach listener
     setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     
@@ -48,13 +47,8 @@ export default function Header() {
 
   // --- Logout Handler (Integrated with live backend logic) ---
   const handleLogout = async () => {
-    // 1. Call the centralized async logout function
-    await logoutUser(); 
-    
-    // 2. Update local state
+    await Auth.logoutUser(); // FIX: Use Auth.logoutUser()
     setIsLoggedIn(false);
-    
-    // 3. Redirect to login page
     router.push('/login'); 
   };
 
@@ -89,7 +83,6 @@ export default function Header() {
     );
 
     if (href) {
-      // FIX: Ensure Link textDecoration is set to none
       return <Link href={href} style={{ textDecoration: 'none' }}>{content}</Link>;
     }
 
@@ -135,16 +128,17 @@ export default function Header() {
         </Link>
       </div>
 
-      {/* Navigation */}
+      {/* Navigation (Streamlined) */}
       <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <NavButton icon={Home} label="Home" href="/" />
-        {/* Removed: Explore, Notifications, Messages, Communities, Threads */}
+        {coreNavItems.map((item) => (
+          <NavButton key={item.href} icon={item.icon} label={item.label} href={item.href} />
+        ))}
         
         {/* Protected Links (Dashboard/Profile) */}
         {isLoggedIn && (
           <>
-            {/* Dashboard is used for profile/settings in this simplified view */}
             <NavButton icon={UserCog} label="Dashboard" href="/dashboard" />
+            {/* Removed: Profile and Settings links to keep navigation clean */}
           </>
         )}
       </nav>
@@ -157,7 +151,6 @@ export default function Header() {
             icon={LogOut} 
             label="Logout" 
             onClick={handleLogout} 
-            // Inline style adjustment to use red color on hover/text
             style={{ color: 'rgb(220, 38, 38)' }} 
           />
         ) : (
@@ -167,7 +160,7 @@ export default function Header() {
               <NavButton icon={LogIn} label="Login" href="/login" />
             </Link>
             
-            {/* REGISTER/SIGN UP BUTTON */}
+            {/* REGISTER/SIGN UP BUTTON (Blue Button Style) */}
             <Link href="/register" style={{ textDecoration: 'none' }}>
               <button style={{
                 backgroundColor: 'rgb(29, 155, 240)',
