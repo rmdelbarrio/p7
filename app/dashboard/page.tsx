@@ -412,7 +412,7 @@ export default function DashboardPage() {
                     <div style={{ ...cardStyle, marginTop: '24px' }}>
                         <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: 'rgb(20, 23, 26)', marginBottom: '16px', borderBottom: '1px solid rgb(239, 243, 244)', paddingBottom: '16px', display: 'flex', alignItems: 'center' }}>
                             <Clock size={20} style={{ marginRight: '8px', color: 'rgb(83, 100, 113)' }} />
-                            Recent Login Activity (MOCK)
+                            Recent Login Activity 
                         </h2 >
                         <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                             {loginRecords.map((record) => (
