@@ -1,23 +1,24 @@
-'use client';
+"use client";
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // Import useRouter
+import { useRouter } from 'next/navigation';
 import {
   Home,
   LogOut,
   UserCog, // Used for Dashboard/Profile
   LogIn,
   UserPlus,
-  MessageCircle, // Using MessageCircle for Messages link
+  MessageCircle, // Used for Messages link
+  Settings 
 } from 'lucide-react';
-// FIX: Using wildcard import with explicit relative path to bypass Vercel/Turbopack error.
-import * as Auth from '../../lib/auth'; 
+// FIX: Using relative path to match your current Next.js file structure
+import * as Auth from '../lib/auth'; 
 
-// Define the core navigation items (Home and Messages)
+// Only include Home and Messages by default
 const coreNavItems = [
   { href: '/', icon: Home, label: 'Home' },
-  { href: '/messages', icon: MessageCircle, label: 'Messages' }, // Added Messages link
+  { href: '/messages', icon: MessageCircle, label: 'Messages' }, 
 ];
 
 export default function Header() {
@@ -25,15 +26,12 @@ export default function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [windowWidth, setWindowWidth] = useState(1024);
 
-  // Function to update authentication state
   const checkAuthStatus = useCallback(() => {
-    // Use Auth.isAuthenticated()
     setIsLoggedIn(Auth.isAuthenticated());
   }, []);
 
-  // --- Effect for Auth Check and Window Resize ---
   useEffect(() => {
-    checkAuthStatus(); // Initial auth check
+    checkAuthStatus();
 
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
@@ -45,9 +43,8 @@ export default function Header() {
     return () => window.removeEventListener('resize', handleResize);
   }, [checkAuthStatus]);
 
-  // --- Logout Handler (Integrated with live backend logic) ---
   const handleLogout = async () => {
-    await Auth.logoutUser(); // FIX: Use Auth.logoutUser()
+    await Auth.logoutUser();
     setIsLoggedIn(false);
     router.push('/login'); 
   };
@@ -138,7 +135,7 @@ export default function Header() {
         {isLoggedIn && (
           <>
             <NavButton icon={UserCog} label="Dashboard" href="/dashboard" />
-            {/* Removed: Profile and Settings links to keep navigation clean */}
+            <NavButton icon={Settings} label="Settings" href="/settings" /> 
           </>
         )}
       </nav>
